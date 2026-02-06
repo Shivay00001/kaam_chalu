@@ -1,0 +1,224 @@
+// KaamChalu - Generate PDF Edge Function
+// Creates PDF reports from HTML templates
+
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+interface PdfPayload {
+    html: string;
+    filename?: string;
+    options?: {
+        format?: "A4" | "Letter";
+        margin?: { top: string; right: string; bottom: string; left: string };
+        landscape?: boolean;
+    };
+}
+
+serve(async (req) => {
+    try {
+        const payload: PdfPayload = await req.json();
+        const { html, filename, options } = payload;
+
+        if (!html) {
+            return new Response(
+                JSON.stringify({ error: "html is required" }),
+                { status: 400, headers: { "Content-Type": "application/json" } }
+            );
+        }
+
+        // Note: In production, use a proper PDF generation library
+        // Options include:
+        // 1. puppeteer/playwright for full HTML rendering
+        // 2. jspdf for simpler documents
+        // 3. External service like htmlpdfapi.com
+
+        // For now, return a placeholder response
+        // In real implementation, this would generate actual PDF
+
+        const pdfBase64 = generateSimplePdf(html, options);
+
+        return new Response(
+            JSON.stringify({
+                success: true,
+                filename: filename || "report.pdf",
+                content_type: "application/pdf",
+                data: pdfBase64,
+                size_bytes: pdfBase64.length * 0.75, // Approximate decoded size
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+    } catch (error) {
+        console.error("PDF generation error:", error);
+        return new Response(
+            JSON.stringify({ success: false, error: error.message }),
+            { status: 500, headers: { "Content-Type": "application/json" } }
+        );
+    }
+});
+
+function generateSimplePdf(
+    html: string,
+    options?: PdfPayload["options"]
+): string {
+    // Placeholder PDF generation
+    // In production, integrate with a proper PDF library
+
+    // Create a minimal PDF structure
+    const pdfContent = `%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+
+3 0 obj
+<< /Type /Page
+   /Parent 2 0 R
+   /MediaBox [0 0 612 792]
+   /Contents 4 0 R
+   /Resources << /Font << /F1 5 0 R >> >>
+>>
+endobj
+
+4 0 obj
+<< /Length 100 >>
+stream
+BT
+/F1 12 Tf
+50 700 Td
+(KaamChalu Report - Generated PDF) Tj
+ET
+endstream
+endobj
+
+5 0 obj
+<< /Type /Font
+   /Subtype /Type1
+   /BaseFont /Helvetica
+>>
+endobj
+
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000266 00000 n 
+0000000416 00000 n 
+
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+497
+%%EOF`;
+
+    // Return base64 encoded PDF
+    return btoa(pdfContent);
+}
+
+// HTML to PDF template for MIS reports
+export function generateMisReportHtml(data: {
+    title: string;
+    period: string;
+    tables: Array<{
+        name: string;
+        headers: string[];
+        rows: string[][];
+    }>;
+    summary?: string;
+}): string {
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      font-family: 'Helvetica', sans-serif;
+      padding: 40px;
+      color: #1f2937;
+    }
+    h1 {
+      color: #2563eb;
+      border-bottom: 2px solid #2563eb;
+      padding-bottom: 10px;
+    }
+    .period {
+      color: #6b7280;
+      margin-bottom: 30px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+    th {
+      background: #2563eb;
+      color: white;
+      padding: 12px;
+      text-align: left;
+    }
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    tr:nth-child(even) {
+      background: #f9fafb;
+    }
+    .summary {
+      background: #eff6ff;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 30px;
+    }
+    .footer {
+      margin-top: 40px;
+      text-align: center;
+      color: #9ca3af;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h1>${data.title}</h1>
+  <p class="period">Report Period: ${data.period}</p>
+  
+  ${data.tables
+            .map(
+                (table) => `
+    <h2>${table.name}</h2>
+    <table>
+      <thead>
+        <tr>
+          ${table.headers.map((h) => `<th>${h}</th>`).join("")}
+        </tr>
+      </thead>
+      <tbody>
+        ${table.rows
+                        .map(
+                            (row) => `
+          <tr>
+            ${row.map((cell) => `<td>${cell}</td>`).join("")}
+          </tr>
+        `
+                        )
+                        .join("")}
+      </tbody>
+    </table>
+  `
+            )
+            .join("")}
+  
+  ${data.summary
+            ? `<div class="summary"><strong>Summary:</strong> ${data.summary}</div>`
+            : ""
+        }
+  
+  <div class="footer">
+    Generated by KaamChalu | ${new Date().toLocaleDateString()}
+  </div>
+</body>
+</html>
+  `;
+}
